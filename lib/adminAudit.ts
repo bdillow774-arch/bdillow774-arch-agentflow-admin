@@ -58,7 +58,7 @@ export async function logAdminAudit(entry: AuditEntry) {
 
   if (isMissingAuditTableError(error)) {
     console.warn(
-      '[Audit] admin_audit_logs table is missing. Apply the buyer-readiness SQL migration to enable audit logs.',
+      '[Audit] admin_audit_logs table is missing. Apply database/admin-audit-logs.sql to enable audit logs.',
     );
     return;
   }
