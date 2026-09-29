@@ -16,6 +16,7 @@ const navItems = [
   { label: 'Overview', href: '/dashboard' },
   { label: 'Admin Access', href: '/dashboard/admin-access' },
   { label: 'Users', href: '/dashboard/users' },
+  { label: 'Brokerages', href: '/dashboard/brokerages' },
   { label: 'Accounting', href: '/dashboard/accounting' },
   { label: 'Promotions', href: '/dashboard/promotions' },
   { label: 'Reports', href: '/dashboard/reports' },
