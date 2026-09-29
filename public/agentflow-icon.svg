@@ -1,0 +1,14 @@
+<svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="agentflowIconTile" x1="38" y1="24" x2="184" y2="194" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5CB8FF"/>
+      <stop offset="1" stop-color="#2C92F4"/>
+    </linearGradient>
+  </defs>
+  <rect x="28" y="28" width="164" height="164" rx="34" fill="url(#agentflowIconTile)"/>
+  <rect x="28.75" y="28.75" width="162.5" height="162.5" rx="33.25" stroke="#267FD5" stroke-opacity="0.45" stroke-width="1.5"/>
+  <path d="M60 105.5L104.6 61.9C107.4 59.2 111.8 59.2 114.6 61.9L151.8 98.6" stroke="white" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M77.5 115.2V152.4C77.5 156.1 80.5 159 84.1 159H105.2V130.8H124.5V159H145.6C149.2 159 152.2 156.1 152.2 152.4V115.2" stroke="white" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M159.2 81.6C167.3 81.6 173.8 75.1 173.8 67C173.8 58.9 167.3 52.4 159.2 52.4C151.2 52.4 144.6 58.9 144.6 67C144.6 75.1 151.2 81.6 159.2 81.6Z" stroke="white" stroke-width="11"/>
+  <path d="M159.2 81.6V121.1C159.2 139.6 144.2 154.6 125.7 154.6H110.4C98.6 154.6 89 164.2 89 176" stroke="white" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

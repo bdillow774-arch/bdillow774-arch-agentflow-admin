@@ -17,6 +17,11 @@ type UserRow = {
   subscription_plan: string | null;
 
   last_login_at: string | null;
+  recent_activity_at: string | null;
+  login_count: number;
+  activity_event_count: number;
+  active_days: number;
+  last_location: unknown;
 
   device_type: string | null;
   os_name: string | null;
@@ -107,7 +112,7 @@ export default function UserActivityReportsPage() {
     const q = search.trim().toLowerCase();
 
     return rows.filter(r => {
-      const text = `${r.first_name || ''} ${r.last_name || ''} ${r.email || ''} ${r.phone || ''}`
+      const text = `${r.first_name || ''} ${r.last_name || ''} ${r.email || ''} ${r.phone || ''} ${formatLocationSummary(r.last_location) || ''}`
         .toLowerCase()
         .trim();
       return text.includes(q);
@@ -129,7 +134,7 @@ export default function UserActivityReportsPage() {
     if (filteredClientSide.length === 0) return;
 
     const header =
-      'First Name,Last Name,Email,Phone,Subscription Status,Plan Type,Last Login,Device Type,OS,Open Houses,Months Active\n';
+      'First Name,Last Name,Email,Phone,Subscription Status,Plan Type,Last Login,Recent Activity,Login Count,Active Days,Last Location,Device Type,OS,Open Houses,Months Active\n';
 
     const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
 
@@ -143,6 +148,10 @@ export default function UserActivityReportsPage() {
         esc(u.subscription_status || ''),
         esc(u.plan_type || ''),
         esc(u.last_login_at ? new Date(u.last_login_at).toLocaleString() : ''),
+        esc(u.recent_activity_at ? new Date(u.recent_activity_at).toLocaleString() : ''),
+        esc(String(u.login_count ?? 0)),
+        esc(String(u.active_days ?? 0)),
+        esc(formatLocationSummary(u.last_location) || ''),
         esc(u.device_type || ''),
         esc(os),
         esc(String(u.open_house_count ?? 0)),
@@ -164,18 +173,19 @@ export default function UserActivityReportsPage() {
   const activeCount = rows.filter(r => r.subscription_status === 'active').length;
   const trialCount = rows.filter(r => r.subscription_status === 'trial').length;
   const pastDueCount = rows.filter(r => r.subscription_status === 'past_due').length;
+  const observedLogins = rows.reduce((sum, row) => sum + (row.login_count || 0), 0);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-base font-semibold text-slate-50">User Activity</h1>
         <p className="text-xs text-slate-400">
-          All users with subscription status, plan type (paid/free), last login, device/OS, open house totals, and months active.
+          All users with subscription status, login/activity frequency, location, device/OS, open house totals, and months active.
         </p>
       </div>
 
       <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-4">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
           <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               Users (this page)
@@ -206,6 +216,14 @@ export default function UserActivityReportsPage() {
             </div>
             <div className="mt-1 text-2xl font-semibold text-slate-50">
               {loading ? '—' : pastDueCount}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Logins Observed
+            </div>
+            <div className="mt-1 text-2xl font-semibold text-slate-50">
+              {loading ? '—' : observedLogins}
             </div>
           </div>
         </div>
@@ -259,7 +277,7 @@ export default function UserActivityReportsPage() {
           <div className="flex flex-col gap-2 md:flex-row md:items-center">
             <input
               type="text"
-              placeholder="Search name, email, phone…"
+              placeholder="Search name, email, phone, location…"
               className="w-full md:w-64 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100 outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -332,6 +350,10 @@ export default function UserActivityReportsPage() {
                   <th className="px-2 py-2 font-medium cursor-pointer" onClick={() => toggleSort('last_login_at')}>
                     Last Login {sortBy === 'last_login_at' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
                   </th>
+                  <th className="px-2 py-2 font-medium">Recent Activity</th>
+                  <th className="px-2 py-2 font-medium">Logins</th>
+                  <th className="px-2 py-2 font-medium">Active Days</th>
+                  <th className="px-2 py-2 font-medium">Location</th>
                   <th className="px-2 py-2 font-medium">Device</th>
                   <th className="px-2 py-2 font-medium">OS</th>
                   <th className="px-2 py-2 font-medium cursor-pointer" onClick={() => toggleSort('open_house_count')}>
@@ -347,6 +369,7 @@ export default function UserActivityReportsPage() {
                   const name = `${u.first_name || ''} ${u.last_name || ''}`.trim() || '—';
                   const os = [u.os_name || '', u.os_version || ''].filter(Boolean).join(' ') || '—';
                   const lastLogin = u.last_login_at ? new Date(u.last_login_at).toLocaleString() : '—';
+                  const recentActivity = u.recent_activity_at ? new Date(u.recent_activity_at).toLocaleString() : '—';
 
                   return (
                     <tr key={u.id} className="border-b border-slate-800 last:border-0">
@@ -356,6 +379,10 @@ export default function UserActivityReportsPage() {
                       <td className="px-2 py-2 text-slate-200">{u.subscription_status || 'unknown'}</td>
                       <td className="px-2 py-2 text-slate-200">{u.plan_type}</td>
                       <td className="px-2 py-2 text-slate-400">{lastLogin}</td>
+                      <td className="px-2 py-2 text-slate-400">{recentActivity}</td>
+                      <td className="px-2 py-2 text-slate-200">{u.login_count ?? 0}</td>
+                      <td className="px-2 py-2 text-slate-200">{u.active_days ?? 0}</td>
+                      <td className="px-2 py-2 text-slate-200">{formatLocationSummary(u.last_location) || '—'}</td>
                       <td className="px-2 py-2 text-slate-200">{u.device_type || '—'}</td>
                       <td className="px-2 py-2 text-slate-200">{os}</td>
                       <td className="px-2 py-2 text-slate-200">{u.open_house_count}</td>
@@ -394,4 +421,27 @@ export default function UserActivityReportsPage() {
       </div>
     </div>
   );
+}
+
+function formatLocationSummary(value: unknown) {
+  if (!value) return null;
+
+  if (typeof value === 'string') {
+    return value.trim() || null;
+  }
+
+  if (typeof value === 'object') {
+    const location = value as Record<string, unknown>;
+    const parts = [location.city, location.state, location.county, location.zip_code]
+      .map((part) => (typeof part === 'string' ? part.trim() : ''))
+      .filter(Boolean);
+
+    if (parts.length > 0) {
+      return parts.join(', ');
+    }
+
+    return JSON.stringify(value);
+  }
+
+  return String(value);
 }

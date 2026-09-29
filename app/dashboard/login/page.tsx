@@ -1,13 +1,10 @@
 'use client';
 
+import BrandLogo from '@/app/dashboard/_components/brand-logo';
+import { clearDashboardSessionCookie, syncDashboardSessionCookie } from '@/lib/adminSessionClient';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseBrowserClient } from '@/lib/supabaseClient';
-
-const TEMP_ADMIN_EMAIL =
-  process.env.NEXT_PUBLIC_TEMP_ADMIN_EMAIL || 'admin@agentflow.app';
-const TEMP_ADMIN_PASSWORD =
-  process.env.NEXT_PUBLIC_TEMP_ADMIN_PASSWORD || 'AgentFlowAdmin123!';
 
 type ViewState = 'idle' | 'submitting';
 
@@ -19,28 +16,47 @@ export default function AdminLoginPage() {
   const [viewState, setViewState] = useState<ViewState>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  // If admin session already exists, go straight to dashboard
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const stored =
-      window.localStorage.getItem('agentflow-admin-session');
-    if (stored) {
-      router.push('/dashboard');
-    }
-  }, [router]);
+    const syncExistingSession = async () => {
+      try {
+        const { data, error } = await supabaseBrowserClient.auth.getUser();
 
-  const saveSession = (sessionEmail: string, isTemp = false) => {
-    if (typeof window === 'undefined') return;
-    const payload = {
-      email: sessionEmail,
-      isTemp,
-      createdAt: new Date().toISOString(),
+        if (error) {
+          throw error;
+        }
+
+        const user = data.user;
+
+        if (!user) {
+          await clearDashboardSessionCookie();
+          return;
+        }
+
+        const appMetadata = user.app_metadata ?? {};
+        const userMetadata = user.user_metadata ?? {};
+
+        const hasDashboardAccess =
+          appMetadata.dashboard_admin === true ||
+          userMetadata.role === 'dashboard_admin' ||
+          userMetadata.role === 'admin';
+
+        if (!hasDashboardAccess) {
+          await supabaseBrowserClient.auth.signOut();
+          await clearDashboardSessionCookie();
+          return;
+        }
+
+        await syncDashboardSessionCookie();
+        router.replace('/dashboard');
+      } catch (error) {
+        console.warn('Clearing stale dashboard auth session.', error);
+        await supabaseBrowserClient.auth.signOut({ scope: 'local' });
+        await clearDashboardSessionCookie();
+      }
     };
-    window.localStorage.setItem(
-      'agentflow-admin-session',
-      JSON.stringify(payload),
-    );
-  };
+
+    void syncExistingSession();
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,18 +70,6 @@ export default function AdminLoginPage() {
     setViewState('submitting');
 
     try {
-      // 1) TEMP ADMIN BACKDOOR
-      if (
-        email.trim().toLowerCase() ===
-          TEMP_ADMIN_EMAIL.toLowerCase() &&
-        password === TEMP_ADMIN_PASSWORD
-      ) {
-        saveSession(email.trim(), true);
-        router.push('/dashboard');
-        return;
-      }
-
-      // 2) SUPABASE ADMIN LOGIN
       const supabase = supabaseBrowserClient;
 
       const { data, error: authError } =
@@ -84,31 +88,22 @@ export default function AdminLoginPage() {
       }
 
       const user = data.user;
+      const appMetadata = user.app_metadata ?? {};
+      const userMetadata = user.user_metadata ?? {};
+      const hasDashboardAccess =
+        appMetadata.dashboard_admin === true ||
+        userMetadata.role === 'dashboard_admin' ||
+        userMetadata.role === 'admin';
 
-      // Look up this user in our "users" table to confirm admin
-      const { data: profile, error: profileError } = await supabase
-        .from('users')
-        .select('is_admin')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (profileError) {
-        console.error('Error loading admin profile:', profileError);
-        setError(
-          'Could not confirm admin status. Check Supabase configuration.',
-        );
-        return;
-      }
-
-      if (!profile || !profile.is_admin) {
+      if (!hasDashboardAccess) {
+        await supabase.auth.signOut();
         setError(
           'This account does not have admin access. Ask an existing admin to grant you admin rights.',
         );
         return;
       }
 
-      // ✅ Success
-      saveSession(email.trim(), false);
+      await syncDashboardSessionCookie(data.session?.access_token ?? null);
       router.push('/dashboard');
     } catch (err: any) {
       console.error('Unexpected admin login error:', err);
@@ -122,30 +117,26 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950">
-      <div className="w-full max-w-md bg-slate-900/80 border border-slate-800 rounded-2xl p-8 shadow-xl">
-        <div className="flex items-center justify-center mb-6">
-          <div className="h-10 w-10 rounded-full bg-sky-500 flex items-center justify-center mr-3 shadow-lg">
-            <span className="text-white font-bold text-lg">AF</span>
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold text-slate-50">
-              AgentFlow Admin
-            </h1>
-            <p className="text-xs text-slate-400">
-              Secure Dashboard • Internal Use Only
-            </p>
-          </div>
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <div className="w-full max-w-md rounded-[32px] border border-slate-200 bg-white p-8 shadow-xl">
+        <div className="mb-8">
+          <BrandLogo variant="login" />
+          <h1 className="mt-6 text-2xl font-semibold text-slate-900">
+            Dashboard Login
+          </h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Sign in with an approved admin email address to access the AgentFlow dashboard.
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              Admin Email
+            <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+              Email Address
             </label>
             <input
               type="email"
-              className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
               placeholder="admin@agentflow.app"
               value={email}
               onChange={e => setEmail(e.target.value)}
@@ -154,12 +145,12 @@ export default function AdminLoginPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
+            <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
               Password
             </label>
             <input
               type="password"
-              className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
               placeholder="••••••••••"
               value={password}
               onChange={e => setPassword(e.target.value)}
@@ -168,7 +159,7 @@ export default function AdminLoginPage() {
           </div>
 
           {error && (
-            <div className="rounded-lg bg-red-900/30 border border-red-700 px-3 py-2 text-xs text-red-200">
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}
@@ -176,22 +167,15 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={viewState === 'submitting'}
-            className="w-full flex items-center justify-center rounded-lg bg-sky-500 hover:bg-sky-400 disabled:opacity-60 disabled:cursor-not-allowed text-sm font-semibold text-white py-2.5 transition-colors"
+            className="flex w-full items-center justify-center rounded-2xl bg-sky-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {viewState === 'submitting'
               ? 'Signing in...'
               : 'Sign in to Dashboard'}
           </button>
 
-          <div className="mt-3 text-[10px] text-slate-500 text-center leading-relaxed">
-            Temp admin login:
-            <br />
-            <span className="font-mono">
-              {TEMP_ADMIN_EMAIL} / {TEMP_ADMIN_PASSWORD}
-            </span>
-            <br />
-            We also accept Supabase accounts that have{' '}
-            <span className="font-mono">users.is_admin = true</span>.
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-relaxed text-slate-500">
+            Dashboard access is limited to accounts with admin access enabled in the Admin Access section.
           </div>
         </form>
       </div>

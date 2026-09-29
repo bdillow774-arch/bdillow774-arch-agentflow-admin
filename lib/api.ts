@@ -4,16 +4,10 @@
 // so you won't get JSON parse errors from here.
 
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabaseConfig';
 
-const SUPABASE_URL = 'https://ueskvpnnusxgxqeiipjp.supabase.cohttps://YOUR-PROJECT-ID.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlc2t2cG5udXN4Z3hxZWlpcGpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMyNTk3MTQsImV4cCI6MjA3ODgzNTcxNH0.p02NwF0UlSoWN5TIHur6K0f5RgQZtqWvcb8Gn9IFMB0';
-
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.warn(
-    '[AgentFlow api.ts] SUPABASE_URL or SUPABASE_ANON_KEY is missing. ' +
-      'Update api.ts with your real Supabase project URL and anon key.'
-  );
-}
+const SUPABASE_URL = getSupabaseUrl();
+const SUPABASE_ANON_KEY = getSupabaseAnonKey();
 
 // This client talks directly to Supabase Auth for login/register/reset.
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -123,4 +117,3 @@ export async function debugDirectLogin(): Promise<AuthResult> {
     token: 'debug-token',
   };
 }
-

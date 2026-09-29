@@ -11,6 +11,14 @@ type OpenHouseLead = {
   email: string | null;
   phone: string | null;
   working_with_agent: string | null; // 'Yes' | 'No' | null
+  city: string | null;
+  state: string | null;
+  county: string | null;
+  zip_code: string | null;
+  has_agent: boolean;
+  archived?: boolean;
+  archived_at?: string | null;
+  source?: 'active' | 'archived';
   created_at: string | null;
 };
 
@@ -29,6 +37,12 @@ export default function OpenHouseReportsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [propertyFilter, setPropertyFilter] = useState<string>('all');
+  const [stateFilter, setStateFilter] = useState<string>('all');
+  const [cityFilter, setCityFilter] = useState<string>('all');
+  const [countyFilter, setCountyFilter] = useState<string>('all');
+  const [zipFilter, setZipFilter] = useState<string>('all');
+  const [agentFilter, setAgentFilter] = useState<'all' | 'has_agent' | 'no_agent'>('all');
+  const [includeArchived, setIncludeArchived] = useState(true);
   const [search, setSearch] = useState<string>('');
 
   const [dateFilter, setDateFilter] = useState<DateFilterType>('all');
@@ -44,7 +58,10 @@ export default function OpenHouseReportsPage() {
         setLoading(true);
         setError(null);
 
-        const res = await fetch('/api/admin/open-house');
+        const params = new URLSearchParams();
+        params.set('includeArchived', includeArchived ? 'true' : 'false');
+
+        const res = await fetch(`/api/admin/open-house?${params.toString()}`);
         const data = await res.json();
 
         if (!res.ok) {
@@ -66,7 +83,7 @@ export default function OpenHouseReportsPage() {
     };
 
     load();
-  }, []);
+  }, [includeArchived]);
 
   // Distinct properties from all leads
   const uniqueProperties = useMemo(() => {
@@ -76,6 +93,30 @@ export default function OpenHouseReportsPage() {
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [leads]);
+
+  const uniqueStates = useMemo(
+    () =>
+      Array.from(new Set(leads.map((lead) => lead.state).filter(Boolean) as string[])).sort(),
+    [leads],
+  );
+
+  const uniqueCities = useMemo(
+    () =>
+      Array.from(new Set(leads.map((lead) => lead.city).filter(Boolean) as string[])).sort(),
+    [leads],
+  );
+
+  const uniqueCounties = useMemo(
+    () =>
+      Array.from(new Set(leads.map((lead) => lead.county).filter(Boolean) as string[])).sort(),
+    [leads],
+  );
+
+  const uniqueZipCodes = useMemo(
+    () =>
+      Array.from(new Set(leads.map((lead) => lead.zip_code).filter(Boolean) as string[])).sort(),
+    [leads],
+  );
 
   // Property summary stats (all-time, not affected by filters)
   const propertyStats = useMemo<PropertyStat[]>(() => {
@@ -173,6 +214,30 @@ export default function OpenHouseReportsPage() {
         return false;
       }
 
+      if (stateFilter !== 'all' && lead.state !== stateFilter) {
+        return false;
+      }
+
+      if (cityFilter !== 'all' && lead.city !== cityFilter) {
+        return false;
+      }
+
+      if (countyFilter !== 'all' && lead.county !== countyFilter) {
+        return false;
+      }
+
+      if (zipFilter !== 'all' && lead.zip_code !== zipFilter) {
+        return false;
+      }
+
+      if (agentFilter === 'has_agent' && !lead.has_agent) {
+        return false;
+      }
+
+      if (agentFilter === 'no_agent' && lead.has_agent) {
+        return false;
+      }
+
       // Date filter
       if (start || end) {
         if (!lead.created_at) {
@@ -194,7 +259,15 @@ export default function OpenHouseReportsPage() {
         ' ' +
         (lead.email || '') +
         ' ' +
-        (lead.phone || '')
+        (lead.phone || '') +
+        ' ' +
+        (lead.city || '') +
+        ' ' +
+        (lead.state || '') +
+        ' ' +
+        (lead.county || '') +
+        ' ' +
+        (lead.zip_code || '')
       )
         .toLowerCase()
         .trim();
@@ -205,7 +278,7 @@ export default function OpenHouseReportsPage() {
 
       return true;
     });
-  }, [leads, propertyFilter, search, dateFilter, customStart, customEnd]);
+  }, [leads, propertyFilter, stateFilter, cityFilter, countyFilter, zipFilter, agentFilter, search, dateFilter, customStart, customEnd]);
 
   const totalVisitors = filteredLeads.length;
   const totalPropertiesFiltered = useMemo(
@@ -217,7 +290,7 @@ export default function OpenHouseReportsPage() {
     if (filteredLeads.length === 0) return;
 
     const header =
-      'Property,First Name,Last Name,Email,Phone,Working With Agent,Signed At\n';
+      'Property,First Name,Last Name,Email,Phone,Working With Agent,Has Agent,City,State,County,Zip Code,Source,Signed At,Archived At\n';
 
     const rows = filteredLeads.map(lead => {
       const property = lead.property_name || '';
@@ -226,8 +299,17 @@ export default function OpenHouseReportsPage() {
       const email = lead.email || '';
       const phone = lead.phone || '';
       const working = lead.working_with_agent || '';
+      const hasAgent = lead.has_agent ? 'Yes' : 'No';
+      const city = lead.city || '';
+      const state = lead.state || '';
+      const county = lead.county || '';
+      const zipCode = lead.zip_code || '';
+      const source = lead.archived ? 'Archived' : 'Active';
       const signedAt = lead.created_at
         ? new Date(lead.created_at).toLocaleString()
+        : '';
+      const archivedAt = lead.archived_at
+        ? new Date(lead.archived_at).toLocaleString()
         : '';
 
       const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
@@ -238,7 +320,14 @@ export default function OpenHouseReportsPage() {
         esc(email),
         esc(phone),
         esc(working),
+        esc(hasAgent),
+        esc(city),
+        esc(state),
+        esc(county),
+        esc(zipCode),
+        esc(source),
         esc(signedAt),
+        esc(archivedAt),
       ].join(',');
     });
 
@@ -367,8 +456,8 @@ export default function OpenHouseReportsPage() {
           Visitors who signed in at Open Houses, as captured in the mobile app.
           You can filter by property, date range, and search by name/email/phone,
           then export a CSV for follow-up. Even if agents delete their local
-          Open House files in the app, these admin records remain here unless
-          you explicitly delete them.
+          Open House files in the app, archived records can still remain here
+          once the retention SQL trigger is installed.
         </p>
       </div>
 
@@ -418,6 +507,68 @@ export default function OpenHouseReportsPage() {
                   {name}
                 </option>
               ))}
+            </select>
+
+            <select
+              className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100 outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
+              value={stateFilter}
+              onChange={e => setStateFilter(e.target.value)}
+            >
+              <option value="all">All states</option>
+              {uniqueStates.map(value => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100 outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
+              value={cityFilter}
+              onChange={e => setCityFilter(e.target.value)}
+            >
+              <option value="all">All cities</option>
+              {uniqueCities.map(value => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100 outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
+              value={countyFilter}
+              onChange={e => setCountyFilter(e.target.value)}
+            >
+              <option value="all">All counties</option>
+              {uniqueCounties.map(value => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100 outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
+              value={zipFilter}
+              onChange={e => setZipFilter(e.target.value)}
+            >
+              <option value="all">All zip codes</option>
+              {uniqueZipCodes.map(value => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100 outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
+              value={agentFilter}
+              onChange={e => setAgentFilter(e.target.value as 'all' | 'has_agent' | 'no_agent')}
+            >
+              <option value="all">All visitor types</option>
+              <option value="has_agent">Has agent</option>
+              <option value="no_agent">No agent</option>
             </select>
 
             {/* Date filter presets */}
@@ -475,12 +626,19 @@ export default function OpenHouseReportsPage() {
           <div className="flex flex-col gap-2 md:flex-row md:items-center">
             <input
               type="text"
-              placeholder="Search by name, email, or phone…"
+              placeholder="Search by name, email, phone, city, state, county, zip…"
               className="w-full md:w-64 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100 outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
             <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setIncludeArchived(prev => !prev)}
+                className="inline-flex items-center justify-center rounded-full bg-slate-700 px-4 py-2 text-xs font-semibold text-slate-50 hover:bg-slate-600"
+              >
+                {includeArchived ? 'Hide Archived' : 'Show Archived'}
+              </button>
               <button
                 onClick={exportCsv}
                 disabled={filteredLeads.length === 0}
@@ -602,6 +760,12 @@ export default function OpenHouseReportsPage() {
                   <th className="px-2 py-2 font-medium">Email</th>
                   <th className="px-2 py-2 font-medium">Phone</th>
                   <th className="px-2 py-2 font-medium">Working w/ Agent</th>
+                  <th className="px-2 py-2 font-medium">Has Agent</th>
+                  <th className="px-2 py-2 font-medium">City</th>
+                  <th className="px-2 py-2 font-medium">State</th>
+                  <th className="px-2 py-2 font-medium">County</th>
+                  <th className="px-2 py-2 font-medium">Zip</th>
+                  <th className="px-2 py-2 font-medium">Source</th>
                   <th className="px-2 py-2 font-medium">Signed At</th>
                 </tr>
               </thead>
@@ -643,6 +807,16 @@ export default function OpenHouseReportsPage() {
                       </td>
                       <td className="px-2 py-2 text-slate-200">
                         {lead.working_with_agent || '—'}
+                      </td>
+                      <td className="px-2 py-2 text-slate-200">
+                        {lead.has_agent ? 'Yes' : 'No'}
+                      </td>
+                      <td className="px-2 py-2 text-slate-200">{lead.city || '—'}</td>
+                      <td className="px-2 py-2 text-slate-200">{lead.state || '—'}</td>
+                      <td className="px-2 py-2 text-slate-200">{lead.county || '—'}</td>
+                      <td className="px-2 py-2 text-slate-200">{lead.zip_code || '—'}</td>
+                      <td className="px-2 py-2 text-slate-200">
+                        {lead.archived ? 'Archived' : 'Active'}
                       </td>
                       <td className="px-2 py-2 text-slate-400">{signedAt}</td>
                     </tr>

@@ -1,13 +1,18 @@
 // lib/supabaseAdmin.ts
 import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+import {
+  getSupabaseServiceRoleKey,
+  getSupabaseUrl,
+} from '@/lib/supabaseConfig';
 
 // IMPORTANT: Server-only. Do not import this into client components.
-export const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
+export const supabaseAdmin = createClient(
+  getSupabaseUrl(),
+  getSupabaseServiceRoleKey(),
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
   },
-});
+);

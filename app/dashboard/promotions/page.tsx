@@ -2,7 +2,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { supabaseBrowserClient } from '@/lib/supabaseClient';
 
 type PromotionSettingsRow = {
   id: string;
@@ -15,9 +14,6 @@ type PromotionSettingsRow = {
 const TRIAL_OPTIONS = [1, 2, 3, 5, 7];
 
 export default function PromotionsPage() {
-  // supabaseBrowserClient is a client instance, not a function
-  const supabase = supabaseBrowserClient;
-
   const [settings, setSettings] = useState<PromotionSettingsRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -30,31 +26,27 @@ export default function PromotionsPage() {
       setError(null);
 
       try {
-        const { data, error: selectError } = await supabase
-          .from('promotion_settings')
-          .select('*')
-          .order('created_at', { ascending: true })
-          .limit(1);
+        const response = await fetch('/api/admin/promotion-settings', {
+          cache: 'no-store',
+        });
+        const payload = await response.json();
 
-        if (selectError) {
-          console.error('Error loading promotion_settings:', selectError);
-          setError(
-            selectError.message ||
-              'Could not load promotion settings. Check the Supabase table & RLS.',
+        if (!response.ok || !payload.ok) {
+          throw new Error(
+            payload.error || 'Could not load promotion settings.',
           );
-          return;
         }
 
-        if (!data || data.length === 0) {
+        if (!payload.settings) {
           setError(
             'No promotion settings row found. Please insert one row into "promotion_settings" in Supabase.',
           );
           return;
         }
 
-        setSettings(data[0] as PromotionSettingsRow);
+        setSettings(payload.settings as PromotionSettingsRow);
       } catch (err: any) {
-        console.error('Unexpected error loading promotion_settings:', err);
+        console.error('Unexpected error loading promotion settings:', err);
         setError(
           err?.message ||
             'Unexpected error loading promotion settings. Check console for details.',
@@ -77,28 +69,20 @@ export default function PromotionsPage() {
     setError(null);
 
     try {
-      const { data, error: updateError } = await supabase
-        .from('promotion_settings')
-        .update({
-          ...patch,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', settings.id)
-        .select('*');
+      const response = await fetch('/api/admin/promotion-settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      const payload = await response.json();
 
-      if (updateError) {
-        console.error('Error updating promotion_settings:', updateError);
-        setError(
-          updateError.message ||
-            'Could not update promotion settings. Please try again.',
+      if (!response.ok || !payload.ok) {
+        throw new Error(
+          payload.error || 'Could not update promotion settings.',
         );
-        return;
       }
 
-      // data will be an array; take first element
-      if (data && data.length > 0) {
-        setSettings(data[0] as PromotionSettingsRow);
-      }
+      setSettings(payload.settings as PromotionSettingsRow);
     } catch (err: any) {
       console.error('Unexpected error updating promotion_settings:', err);
       setError(
@@ -125,35 +109,35 @@ export default function PromotionsPage() {
   const isReady = !!settings && !loading;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+    <div className="mx-auto max-w-3xl px-4 py-8 text-slate-50">
+      <h1 className="mb-2 text-2xl font-semibold">
         Promotions &amp; Free Trials
       </h1>
-      <p className="text-sm text-gray-600 mb-6">
+      <p className="mb-6 text-sm text-slate-400">
         Control whether new users can start a free trial in the AgentFlow app
         and how long that trial lasts.
       </p>
 
       {loading && (
-        <div className="mb-4 rounded-md bg-blue-50 px-4 py-3 text-sm text-blue-700">
+        <div className="mb-4 rounded-md border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm text-sky-100">
           Loading promotion settings…
         </div>
       )}
 
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mb-4 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
           {error}
         </div>
       )}
 
-      <div className="bg-white shadow-sm rounded-lg border border-gray-200 p-5 space-y-5">
+      <div className="space-y-5 rounded-lg border border-slate-800 bg-slate-900/80 p-5 shadow-sm">
         {/* Enable Free Trial */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-slate-50">
               Enable Free Trial
             </p>
-            <p className="text-xs text-gray-500 mt-1 max-w-md">
+            <p className="mt-1 max-w-md text-xs text-slate-400">
               When enabled, new users can start a free trial when they create
               an account in the app. When disabled, all new accounts will be
               created as Free or Paid only.
@@ -167,10 +151,10 @@ export default function PromotionsPage() {
             }
             disabled={!isReady || saving}
             className={[
-              'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500',
+              'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-sky-400',
               settings?.free_trial_enabled
-                ? 'bg-indigo-600'
-                : 'bg-gray-300',
+                ? 'bg-sky-500'
+                : 'bg-slate-700',
               (!isReady || saving) ? 'opacity-60 cursor-not-allowed' : '',
             ].join(' ')}
           >
@@ -185,10 +169,10 @@ export default function PromotionsPage() {
 
         {/* Trial Length */}
         <div>
-          <p className="text-sm font-medium text-gray-900 mb-1">
+          <p className="mb-1 text-sm font-medium text-slate-50">
             Free Trial Length
           </p>
-          <p className="text-xs text-gray-500 mb-3 max-w-md">
+          <p className="mb-3 max-w-md text-xs text-slate-400">
             Choose how many days the free trial should last. This value is used
             when promotions are enabled in the mobile app.
           </p>
@@ -208,8 +192,8 @@ export default function PromotionsPage() {
                   className={[
                     'px-3 py-1.5 rounded-full text-sm border transition-colors',
                     isActive
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50',
+                      ? 'border-sky-500 bg-sky-500 text-white'
+                      : 'border-slate-700 bg-slate-950 text-slate-200 hover:bg-slate-800',
                     disabled ? 'opacity-60 cursor-not-allowed' : '',
                   ].join(' ')}
                 >
@@ -221,15 +205,15 @@ export default function PromotionsPage() {
         </div>
 
         {/* Status */}
-        <div className="pt-3 border-t border-gray-100">
-          <p className="text-xs text-gray-500">
+        <div className="border-t border-slate-800 pt-3">
+          <p className="text-xs text-slate-400">
             Current status:{' '}
             {settings?.free_trial_enabled ? (
-              <span className="font-medium text-green-600">
+              <span className="font-medium text-emerald-300">
                 Free trials enabled
               </span>
             ) : (
-              <span className="font-medium text-gray-700">
+              <span className="font-medium text-slate-200">
                 Free trials disabled
               </span>
             )}

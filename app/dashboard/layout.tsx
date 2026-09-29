@@ -1,8 +1,12 @@
 'use client';
 
 import React from 'react';
+import { clearDashboardSessionCookie, syncDashboardSessionCookie } from '@/lib/adminSessionClient';
+import BrandLogo from '@/app/dashboard/_components/brand-logo';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { supabaseBrowserClient } from '@/lib/supabaseClient';
 
 type DashboardLayoutProps = {
   children: React.ReactNode;
@@ -10,7 +14,9 @@ type DashboardLayoutProps = {
 
 const navItems = [
   { label: 'Overview', href: '/dashboard' },
+  { label: 'Admin Access', href: '/dashboard/admin-access' },
   { label: 'Users', href: '/dashboard/users' },
+  { label: 'Accounting', href: '/dashboard/accounting' },
   { label: 'Promotions', href: '/dashboard/promotions' },
   { label: 'Reports', href: '/dashboard/reports' },
 ];
@@ -18,35 +24,131 @@ const navItems = [
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const isLoginPage = pathname === '/dashboard/login';
 
-  // Do NOT wrap the login page in the dashboard chrome
-  if (pathname === '/dashboard/login') {
-    return <>{children}</>;
-  }
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        if (isLoginPage) {
+          setAuthChecked(true);
+          setIsAuthenticated(false);
+          return;
+        }
 
-  const handleLogout = () => {
-    try {
-      if (typeof window !== 'undefined') {
-        window.localStorage.removeItem('agentflow-admin-session');
+        const { data, error } = await supabaseBrowserClient.auth.getUser();
+
+        if (error) {
+          throw error;
+        }
+
+        const user = data.user;
+
+        if (!user) {
+          await clearDashboardSessionCookie();
+          setIsAuthenticated(false);
+          setAuthChecked(true);
+          router.replace('/dashboard/login');
+          return;
+        }
+
+        const appMetadata = user.app_metadata ?? {};
+        const userMetadata = user.user_metadata ?? {};
+
+        const hasDashboardAccess =
+          appMetadata.dashboard_admin === true ||
+          userMetadata.role === 'dashboard_admin' ||
+          userMetadata.role === 'admin';
+
+        if (!hasDashboardAccess || appMetadata.dashboard_active === false) {
+          await supabaseBrowserClient.auth.signOut();
+          await clearDashboardSessionCookie();
+          setIsAuthenticated(false);
+          setAuthChecked(true);
+          router.replace('/dashboard/login');
+          return;
+        }
+
+        await syncDashboardSessionCookie();
+        setIsAuthenticated(true);
+        setAuthChecked(true);
+      } catch (error) {
+        console.warn('Dashboard auth session was cleared.', error);
+        await supabaseBrowserClient.auth.signOut({ scope: 'local' });
+        await clearDashboardSessionCookie();
+        setIsAuthenticated(false);
+        setAuthChecked(true);
+        router.replace('/dashboard/login');
       }
+    };
+
+    void checkAuth();
+  }, [isLoginPage, router]);
+
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabaseBrowserClient.auth.onAuthStateChange((_event, session) => {
+      if (isLoginPage) {
+        return;
+      }
+
+      if (!session?.access_token) {
+        setIsAuthenticated(false);
+        void clearDashboardSessionCookie();
+        return;
+      }
+
+      void syncDashboardSessionCookie(session.access_token);
+      setIsAuthenticated(true);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [isLoginPage]);
+
+  const handleLogout = async () => {
+    try {
+      await supabaseBrowserClient.auth.signOut();
+      await clearDashboardSessionCookie();
     } catch {
       // ignore
     }
     router.push('/dashboard/login');
   };
 
+  // Do NOT wrap the login page in the dashboard chrome
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
+
+  if (!authChecked || !isAuthenticated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-600">
+        Loading dashboard...
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 flex">
+    <div className="flex min-h-screen bg-slate-100 text-slate-900">
       {/* Sidebar */}
-      <aside className="w-64 border-r border-slate-800 bg-slate-950/90 flex flex-col">
-        <div className="px-5 py-4 border-b border-slate-800">
-          <div className="text-xs uppercase tracking-widest text-slate-400 mb-1">
+      <aside className="flex w-72 flex-col border-r border-slate-200 bg-white">
+        <div className="border-b border-slate-200 px-5 py-5">
+          <div className="mb-4">
+            <BrandLogo variant="sidebar" />
+          </div>
+          <div className="mb-1 text-xs uppercase tracking-[0.22em] text-slate-500">
             AgentFlow
           </div>
-          <div className="text-lg font-semibold">Admin Dashboard</div>
+          <div className="text-lg font-semibold text-slate-900">
+            Admin Dashboard
+          </div>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav className="flex-1 space-y-1 px-3 py-4">
           {navItems.map(item => {
             const isActive =
               pathname === item.href ||
@@ -57,10 +159,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 key={item.href}
                 href={item.href}
                 className={[
-                  'flex items-center rounded-lg px-3 py-2 text-sm transition-colors',
+                  'flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
                   isActive
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-200 hover:bg-slate-800 hover:text-white',
+                    ? 'bg-sky-500 text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
                 ].join(' ')}
               >
                 {item.label}
@@ -69,10 +171,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           })}
         </nav>
 
-        <div className="px-3 py-4 border-t border-slate-800">
+        <div className="border-t border-slate-200 px-3 py-4">
           <button
             onClick={handleLogout}
-            className="w-full rounded-lg bg-slate-800 hover:bg-slate-700 text-sm py-2 text-slate-100 transition-colors"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
           >
             Logout
           </button>
@@ -83,7 +185,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 min-h-screen bg-slate-950 text-slate-50">
+      <main className="min-h-screen flex-1 bg-slate-50 text-slate-900">
         {children}
       </main>
     </div>

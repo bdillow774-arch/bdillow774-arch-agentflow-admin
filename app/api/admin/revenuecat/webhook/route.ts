@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireDashboardAdmin } from '@/lib/dashboardAdminAuth';
 
 export async function GET() {
-  // This is just for quick testing in the browser
+  const auth = await requireDashboardAdmin();
+  if (!auth.ok) return auth.response;
+
   return NextResponse.json({
     ok: true,
     route: '/api/revenuecat/webhook',
@@ -9,14 +12,16 @@ export async function GET() {
   });
 }
 
-export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null);
+export async function POST(_req: NextRequest) {
+  const auth = await requireDashboardAdmin();
+  if (!auth.ok) return auth.response;
 
-  return NextResponse.json({
-    ok: true,
-    route: '/api/revenuecat/webhook',
-    method: 'POST',
-    receivedBody: body,
-  });
+  return NextResponse.json(
+    {
+      ok: false,
+      error: 'Use /api/revenuecat-webhook for live RevenueCat events.',
+    },
+    { status: 405 },
+  );
 }
    

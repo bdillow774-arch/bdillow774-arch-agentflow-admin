@@ -1,0 +1,33 @@
+<svg width="980" height="240" viewBox="0 0 980 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="agentflowTile" x1="42" y1="28" x2="198" y2="202" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5CB8FF"/>
+      <stop offset="1" stop-color="#2C92F4"/>
+    </linearGradient>
+    <filter id="agentflowShadow" x="20" y="24" width="196" height="196" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#2C92F4" flood-opacity="0.14"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#agentflowShadow)">
+    <rect x="32" y="36" width="168" height="168" rx="34" fill="url(#agentflowTile)"/>
+    <rect x="32.75" y="36.75" width="166.5" height="166.5" rx="33.25" stroke="#267FD5" stroke-opacity="0.45" stroke-width="1.5"/>
+  </g>
+
+  <path d="M64 113.5L108.6 69.9C111.4 67.2 115.8 67.2 118.6 69.9L155.8 106.6" stroke="white" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M81.5 123.2V160.4C81.5 164.1 84.5 167 88.1 167H109.2V138.8H128.5V167H149.6C153.2 167 156.2 164.1 156.2 160.4V123.2" stroke="white" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M163.2 89.6C171.3 89.6 177.8 83.1 177.8 75C177.8 66.9 171.3 60.4 163.2 60.4C155.2 60.4 148.6 66.9 148.6 75C148.6 83.1 155.2 89.6 163.2 89.6Z" stroke="white" stroke-width="11"/>
+  <path d="M163.2 89.6V129.1C163.2 147.6 148.2 162.6 129.7 162.6H114.4C102.6 162.6 93 172.2 93 184" stroke="white" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <text
+    x="236"
+    y="146"
+    fill="#2F3E52"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="104"
+    font-weight="700"
+    letter-spacing="-3"
+  >
+    AgentFlow
+  </text>
+</svg>
