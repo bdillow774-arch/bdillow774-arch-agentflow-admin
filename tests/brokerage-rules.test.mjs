@@ -6,8 +6,12 @@ import {
   assertPlanSeatConfiguration,
   brokerageStatusGrantsAccess,
   canApproveMembership,
+  expiredGraceTargetStateForStripeStatus,
   joinCodeIsUsable,
+  protectedBillingFieldsInPatch,
   resolveEntitlement,
+  shouldExpireGracePeriod,
+  stripeSubscriptionStatusToBrokerageState,
 } from '../lib/brokerageRules.mjs';
 import { verifyStripeSignature } from '../lib/stripeWebhookRules.mjs';
 
@@ -74,6 +78,60 @@ test('brokerage access remains valid during grace period and stops after grace e
     brokerageStatusGrantsAccess('past_due', '2026-09-28T12:00:00Z', now),
     false,
   );
+});
+
+test('admin brokerage patch blocks Stripe-managed billing fields', () => {
+  assert.deepEqual(protectedBillingFieldsInPatch({ name: 'Allowed Name' }), []);
+  assert.deepEqual(
+    protectedBillingFieldsInPatch({
+      name: 'Allowed Name',
+      subscription_state: 'active',
+      grace_period_ends_at: null,
+      stripe_subscription_id: 'sub_test',
+    }),
+    ['subscription_state', 'stripe_subscription_id', 'grace_period_ends_at'],
+  );
+});
+
+test('grace expiration only applies after a brokerage grace period has ended', () => {
+  const now = new Date('2026-09-29T12:00:00Z');
+
+  assert.equal(
+    shouldExpireGracePeriod(
+      { subscription_state: 'grace_period', grace_period_ends_at: '2026-09-29T11:59:59Z' },
+      now,
+    ),
+    true,
+  );
+  assert.equal(
+    shouldExpireGracePeriod(
+      { subscription_state: 'grace_period', grace_period_ends_at: '2026-09-29T12:00:01Z' },
+      now,
+    ),
+    false,
+  );
+  assert.equal(
+    shouldExpireGracePeriod(
+      { subscription_state: 'active', grace_period_ends_at: '2026-09-29T11:59:59Z' },
+      now,
+    ),
+    false,
+  );
+});
+
+test('Stripe subscription states map to brokerage states and grace expiration targets', () => {
+  assert.equal(stripeSubscriptionStatusToBrokerageState('active'), 'active');
+  assert.equal(stripeSubscriptionStatusToBrokerageState('trialing'), 'active');
+  assert.equal(stripeSubscriptionStatusToBrokerageState('past_due'), 'grace_period');
+  assert.equal(stripeSubscriptionStatusToBrokerageState('unpaid'), 'grace_period');
+  assert.equal(stripeSubscriptionStatusToBrokerageState('canceled'), 'expired');
+  assert.equal(stripeSubscriptionStatusToBrokerageState('incomplete_expired'), 'expired');
+  assert.equal(stripeSubscriptionStatusToBrokerageState('incomplete'), 'suspended');
+
+  assert.equal(expiredGraceTargetStateForStripeStatus('active'), 'active');
+  assert.equal(expiredGraceTargetStateForStripeStatus('past_due'), 'suspended');
+  assert.equal(expiredGraceTargetStateForStripeStatus('unpaid'), 'suspended');
+  assert.equal(expiredGraceTargetStateForStripeStatus('canceled'), 'expired');
 });
 
 test('dual entitlement uses individual OR brokerage access', () => {

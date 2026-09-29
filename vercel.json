@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/brokerage-grace-expiration",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

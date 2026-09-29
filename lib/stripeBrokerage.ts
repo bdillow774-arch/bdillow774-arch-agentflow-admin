@@ -20,7 +20,7 @@ export function getStripeWebhookSecret() {
 
 export { verifyStripeSignature };
 
-async function stripeRequest<T>(
+async function stripePostRequest<T>(
   path: string,
   params: URLSearchParams,
 ): Promise<T> {
@@ -31,6 +31,24 @@ async function stripeRequest<T>(
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: params,
+  });
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(
+      payload?.error?.message || `Stripe request failed with ${response.status}.`,
+    );
+  }
+
+  return payload as T;
+}
+
+async function stripeGetRequest<T>(path: string): Promise<T> {
+  const response = await fetch(`${STRIPE_API_BASE}${path}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${getStripeSecretKey()}`,
+    },
   });
 
   const payload = await response.json().catch(() => null);
@@ -78,7 +96,7 @@ export async function createStripeCheckoutSession({
   params.set('metadata[brokerage_name]', brokerageName);
   params.set('metadata[purchased_seats]', String(purchasedSeats));
 
-  return stripeRequest<{
+  return stripePostRequest<{
     id: string;
     url: string | null;
     customer?: string;
@@ -97,5 +115,15 @@ export async function createStripePortalSession({
   params.set('customer', customerId);
   params.set('return_url', returnUrl);
 
-  return stripeRequest<{ id: string; url: string }>('/billing_portal/sessions', params);
+  return stripePostRequest<{ id: string; url: string }>('/billing_portal/sessions', params);
+}
+
+export async function retrieveStripeSubscription(subscriptionId: string) {
+  if (!subscriptionId.trim()) {
+    throw new Error('Stripe subscription id is required.');
+  }
+
+  return stripeGetRequest<any>(
+    `/subscriptions/${encodeURIComponent(subscriptionId)}?expand[]=items.data.price`,
+  );
 }

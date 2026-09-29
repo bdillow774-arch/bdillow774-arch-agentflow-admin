@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { logAdminAudit } from '@/lib/adminAudit';
+import { protectedBillingFieldsInPatch } from '@/lib/brokerageRules.mjs';
 import { createActiveJoinCode, createBrokerage, loadBrokerageSummary } from '@/lib/brokerageServer';
 import { requireDashboardAdmin } from '@/lib/dashboardAdminAuth';
 import { supabaseAdminClient } from '@/lib/supabaseAdminClient';
@@ -102,16 +103,32 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ ok: true, joinCode: joinCode.code });
     }
 
-    const allowedFields = [
-      'name',
-      'legal_name',
-      'primary_admin_email',
-      'primary_admin_name',
-      'phone',
-      'subscription_state',
-      'grace_period_ends_at',
-      'suspended_at',
-    ];
+    const protectedBillingFields = protectedBillingFieldsInPatch(body ?? {});
+    if (protectedBillingFields.length > 0) {
+      await logAdminAudit({
+        action: 'update',
+        resourceType: 'brokerage',
+        actor: auth.user,
+        request: req,
+        resourceId: id,
+        details: {
+          reason: 'stripe_managed_billing_fields',
+          blockedFields: protectedBillingFields,
+        },
+      });
+
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            'Stripe-managed billing fields cannot be edited from the admin brokerage endpoint.',
+          blockedFields: protectedBillingFields,
+        },
+        { status: 400 },
+      );
+    }
+
+    const allowedFields = ['name', 'legal_name', 'primary_admin_email', 'primary_admin_name', 'phone'];
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
     for (const field of allowedFields) {
       if (body?.[field] !== undefined) patch[field] = body[field];

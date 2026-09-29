@@ -20,6 +20,15 @@ export function brokerageStatusGrantsAccess(
   graceEndsAt?: string | null,
   now?: Date,
 ): boolean;
+export const PROTECTED_BROKERAGE_BILLING_FIELDS: string[];
+export function protectedBillingFieldsInPatch(payload?: Record<string, unknown>): string[];
+export function shouldExpireGracePeriod(brokerage: any, now?: Date): boolean;
+export function stripeSubscriptionStatusToBrokerageState(
+  status: string | null | undefined,
+): string;
+export function expiredGraceTargetStateForStripeStatus(
+  status: string | null | undefined,
+): string;
 export function individualEntitlementIsValid(user: any, now?: Date): boolean;
 export function brokerageEntitlementIsValid(
   membership: any,
