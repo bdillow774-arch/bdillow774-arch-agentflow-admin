@@ -33,6 +33,19 @@ function mapSubscriptionState(stripeStatus: string | null | undefined) {
   }
 }
 
+function subscriptionPriceId(subscription: any) {
+  const item = subscription?.items?.data?.[0];
+  return typeof item?.price?.id === 'string' ? item.price.id : null;
+}
+
+function subscriptionPeriodStart(subscription: any) {
+  return subscription?.current_period_start ?? subscription?.items?.data?.[0]?.current_period_start;
+}
+
+function subscriptionPeriodEnd(subscription: any) {
+  return subscription?.current_period_end ?? subscription?.items?.data?.[0]?.current_period_end;
+}
+
 async function persistWebhookEvent(event: any) {
   const { error } = await supabaseAdminClient.from('stripe_webhook_events').insert({
     event_id: event.id,
@@ -109,6 +122,7 @@ async function reconcileSubscription(subscription: any, eventType: string) {
 
   const state = mapSubscriptionState(subscription.status);
   const recovered = brokerage.subscription_state !== 'active' && state === 'active';
+  const stripePriceId = subscriptionPriceId(subscription);
   const patch: Record<string, unknown> = {
     stripe_customer_id:
       typeof subscription.customer === 'string'
@@ -117,8 +131,8 @@ async function reconcileSubscription(subscription: any, eventType: string) {
     stripe_subscription_id: subscription.id,
     stripe_subscription_status: subscription.status ?? null,
     subscription_state: state,
-    current_period_start: toIsoFromUnix(subscription.current_period_start),
-    current_period_end: toIsoFromUnix(subscription.current_period_end),
+    current_period_start: toIsoFromUnix(subscriptionPeriodStart(subscription)),
+    current_period_end: toIsoFromUnix(subscriptionPeriodEnd(subscription)),
     cancel_at_period_end: subscription.cancel_at_period_end === true,
     canceled_at: toIsoFromUnix(subscription.canceled_at),
     grace_period_ends_at:
@@ -129,6 +143,23 @@ async function reconcileSubscription(subscription: any, eventType: string) {
     reactivated_at: recovered ? new Date().toISOString() : brokerage.reactivated_at,
     updated_at: new Date().toISOString(),
   };
+
+  if (stripePriceId) {
+    patch.stripe_price_id = stripePriceId;
+
+    const { data: plan, error: planError } = await supabaseAdminClient
+      .from('brokerage_plans')
+      .select('code, seat_limit, monthly_price_cents, is_custom')
+      .eq('stripe_price_id', stripePriceId)
+      .maybeSingle();
+
+    if (planError) throw planError;
+    if (plan && !plan.is_custom && plan.seat_limit && plan.monthly_price_cents) {
+      patch.plan_code = plan.code;
+      patch.purchased_seats = plan.seat_limit;
+      patch.monthly_price_cents = plan.monthly_price_cents;
+    }
+  }
 
   if (eventType === 'customer.subscription.deleted') {
     patch.subscription_state = 'expired';

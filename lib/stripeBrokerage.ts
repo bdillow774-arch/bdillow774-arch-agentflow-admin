@@ -47,7 +47,7 @@ export async function createStripeCheckoutSession({
   brokerageId,
   brokerageName,
   adminEmail,
-  monthlyPriceCents,
+  priceId,
   purchasedSeats,
   successUrl,
   cancelUrl,
@@ -55,11 +55,15 @@ export async function createStripeCheckoutSession({
   brokerageId: string;
   brokerageName: string;
   adminEmail: string;
-  monthlyPriceCents: number;
+  priceId: string;
   purchasedSeats: number;
   successUrl: string;
   cancelUrl: string;
 }) {
+  if (!priceId.trim()) {
+    throw new Error('Missing Stripe price mapping for brokerage plan.');
+  }
+
   const params = new URLSearchParams();
   params.set('mode', 'subscription');
   params.set('success_url', successUrl);
@@ -68,18 +72,11 @@ export async function createStripeCheckoutSession({
   params.set('client_reference_id', brokerageId);
   params.set('metadata[brokerage_id]', brokerageId);
   params.set('subscription_data[metadata][brokerage_id]', brokerageId);
+  params.set('subscription_data[metadata][purchased_seats]', String(purchasedSeats));
   params.set('line_items[0][quantity]', '1');
-  params.set('line_items[0][price_data][currency]', 'usd');
-  params.set('line_items[0][price_data][recurring][interval]', 'month');
-  params.set('line_items[0][price_data][unit_amount]', String(monthlyPriceCents));
-  params.set(
-    'line_items[0][price_data][product_data][name]',
-    `AgentFlow Brokerage - ${brokerageName}`,
-  );
-  params.set(
-    'line_items[0][price_data][product_data][metadata][purchased_seats]',
-    String(purchasedSeats),
-  );
+  params.set('line_items[0][price]', priceId);
+  params.set('metadata[brokerage_name]', brokerageName);
+  params.set('metadata[purchased_seats]', String(purchasedSeats));
 
   return stripeRequest<{
     id: string;

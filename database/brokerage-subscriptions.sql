@@ -6,6 +6,9 @@ create table if not exists brokerage_plans (
   seat_limit integer null,
   monthly_price_cents integer null,
   minimum_seat_price_cents integer not null,
+  stripe_product_id text null,
+  stripe_price_id text null unique,
+  stripe_lookup_key text null unique,
   is_custom boolean not null default false,
   is_active boolean not null default true,
   created_at timestamptz not null default timezone('utc', now()),
@@ -39,6 +42,23 @@ set
   minimum_seat_price_cents = excluded.minimum_seat_price_cents,
   is_custom = excluded.is_custom,
   updated_at = timezone('utc', now());
+
+alter table if exists brokerage_plans
+  add column if not exists stripe_product_id text null;
+
+alter table if exists brokerage_plans
+  add column if not exists stripe_price_id text null;
+
+alter table if exists brokerage_plans
+  add column if not exists stripe_lookup_key text null;
+
+create unique index if not exists brokerage_plans_stripe_price_id_uidx
+  on brokerage_plans (stripe_price_id)
+  where stripe_price_id is not null;
+
+create unique index if not exists brokerage_plans_stripe_lookup_key_uidx
+  on brokerage_plans (stripe_lookup_key)
+  where stripe_lookup_key is not null;
 
 create table if not exists brokerages (
   id uuid primary key default gen_random_uuid(),
