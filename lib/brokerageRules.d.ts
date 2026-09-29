@@ -26,6 +26,24 @@ export function brokerageEntitlementIsValid(
   brokerage: any,
   now?: Date,
 ): boolean;
+export function assignedSeatCount(memberships?: any[]): number;
+export function canApproveMembership(args: {
+  brokerage: any;
+  memberships?: any[];
+  membership: any;
+  now?: Date;
+}): {
+  ok: boolean;
+  reason:
+    | 'membership_not_found'
+    | 'brokerage_not_found'
+    | 'already_active'
+    | 'membership_not_pending'
+    | 'brokerage_not_active'
+    | 'no_seats_available'
+    | 'seat_available';
+};
+export function joinCodeIsUsable(joinCode: any, now?: Date): boolean;
 export function resolveEntitlement(args: {
   user: any;
   membership?: any;

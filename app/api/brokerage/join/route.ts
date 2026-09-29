@@ -46,21 +46,56 @@ export async function POST(req: Request) {
       );
     }
 
-    const { data: membership, error } = await supabaseAdminClient
+    const { data: existingMembership, error: existingError } = await supabaseAdminClient
       .from('brokerage_memberships')
-      .upsert(
-        {
-          brokerage_id: joinCode.brokerage_id,
-          user_id: user.id,
-          email: user.email?.toLowerCase() ?? null,
-          status: 'pending',
-          join_code_id: joinCode.id,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'brokerage_id,user_id' },
-      )
       .select('*')
-      .single();
+      .eq('brokerage_id', joinCode.brokerage_id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (existingError) throw existingError;
+
+    if (
+      existingMembership?.status === 'pending' ||
+      existingMembership?.status === 'active'
+    ) {
+      return NextResponse.json({
+        ok: true,
+        status: existingMembership.status,
+        brokerage: {
+          id: joinCode.brokerages.id,
+          name: joinCode.brokerages.name,
+        },
+      });
+    }
+
+    const membershipPayload = {
+      brokerage_id: joinCode.brokerage_id,
+      user_id: user.id,
+      email: user.email?.toLowerCase() ?? null,
+      status: 'pending',
+      join_code_id: joinCode.id,
+      rejected_at: null,
+      rejected_by_user_id: null,
+      removed_at: null,
+      removed_by_user_id: null,
+      seat_assigned_at: null,
+      seat_revoked_at: null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: membership, error } = existingMembership
+      ? await supabaseAdminClient
+          .from('brokerage_memberships')
+          .update(membershipPayload)
+          .eq('id', existingMembership.id)
+          .select('*')
+          .single()
+      : await supabaseAdminClient
+          .from('brokerage_memberships')
+          .insert(membershipPayload)
+          .select('*')
+          .single();
 
     if (error) throw error;
 

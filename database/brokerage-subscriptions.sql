@@ -190,6 +190,11 @@ as $$
     and seat_revoked_at is null
 $$;
 
+revoke all on function brokerage_assigned_seat_count(uuid) from public;
+revoke all on function brokerage_assigned_seat_count(uuid) from anon;
+revoke all on function brokerage_assigned_seat_count(uuid) from authenticated;
+grant execute on function brokerage_assigned_seat_count(uuid) to service_role;
+
 create or replace function approve_brokerage_membership(
   next_membership_id uuid,
   next_actor_user_id uuid default null
@@ -281,6 +286,11 @@ begin
   return target_membership;
 end;
 $$;
+
+revoke all on function approve_brokerage_membership(uuid, uuid) from public;
+revoke all on function approve_brokerage_membership(uuid, uuid) from anon;
+revoke all on function approve_brokerage_membership(uuid, uuid) from authenticated;
+grant execute on function approve_brokerage_membership(uuid, uuid) to service_role;
 
 alter table if exists brokerages enable row level security;
 alter table if exists brokerage_admins enable row level security;

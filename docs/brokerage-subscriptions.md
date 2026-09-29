@@ -76,6 +76,103 @@ The mobile AgentFlow repo still needs client support for:
 If the mobile app cannot add these calls through existing server-controlled
 configuration, an iOS build and App Store review will be required.
 
+### Mobile API Contract
+
+All mobile brokerage endpoints require the user's Supabase access token:
+
+`Authorization: Bearer <supabase access token>`
+
+#### Submit Brokerage Code
+
+`POST /api/brokerage/join`
+
+Request:
+
+```json
+{
+  "code": "AF-XXXXX-XXXXX-XXXXX"
+}
+```
+
+Responses:
+
+```json
+{
+  "ok": true,
+  "status": "pending",
+  "brokerage": {
+    "id": "uuid",
+    "name": "Brokerage Name"
+  }
+}
+```
+
+Possible `status` values:
+
+- `pending`: request is waiting for brokerage/admin approval; no brokerage
+  entitlement is granted yet.
+- `active`: user already has an approved assigned seat.
+- `rejected`: only returned by future status surfaces, not by successful code
+  submission.
+- `removed`: only returned by future status surfaces, not by successful code
+  submission.
+
+Error states:
+
+- `401`: missing/invalid Supabase session.
+- `400`: missing code.
+- `404`: invalid, revoked, or expired code. The response must not reveal
+  brokerage details.
+- `500`: server or provider error.
+
+Duplicate submissions:
+
+- Existing `pending` membership returns `pending`.
+- Existing `active` membership returns `active`.
+- Existing `rejected` or `removed` membership may be re-requested and becomes
+  `pending` again without assigning a seat.
+
+#### Resolve Access
+
+`GET /api/account/entitlement`
+
+Response:
+
+```json
+{
+  "ok": true,
+  "hasAccess": true,
+  "sources": {
+    "individual": true,
+    "brokerage": false
+  },
+  "memberships": [
+    {
+      "status": "pending",
+      "requested_at": "2026-09-29T00:00:00.000Z",
+      "approved_at": null,
+      "removed_at": null,
+      "brokerages": {
+        "id": "uuid",
+        "name": "Brokerage Name",
+        "subscription_state": "active"
+      }
+    }
+  ]
+}
+```
+
+Client behavior:
+
+- Show paid access when `hasAccess` is true.
+- Show individual paywall/subscription flow only when `hasAccess` is false.
+- Show brokerage pending UI when a membership is `pending`.
+- Treat `removed`, `rejected`, or suspended brokerage access as no brokerage
+  entitlement, while preserving any active RevenueCat access.
+- Refresh after app launch, login, purchase restore, brokerage-code submission,
+  and foreground resume. Poll pending membership status conservatively or refresh
+  on user action/admin notification.
+
 ## Google Maps Audit Boundary
 
 This admin dashboard does not contain the Google Maps route planning,
@@ -83,3 +180,18 @@ geocoding, ETA, traffic, or optimization implementation. It only has manual
 accounting inputs for Google Maps costs. The actual Google Maps SKU/cost audit
 must be performed in the mobile AgentFlow repo where the route-planning code
 lives.
+
+When the mobile repo is opened, inspect:
+
+- every geocoding call made when users enter/import addresses
+- route computation APIs and whether routes are recalculated on every render
+- route matrix, distance matrix, or Routes API calls
+- waypoint optimization calls
+- traffic-aware ETA calls and refresh intervals
+- behavior when routes are reopened from saved state
+- duplicate requests caused by screen remounts, effects, or state churn
+- caching/reuse opportunities that do not reduce accuracy or functionality
+- the Google Maps Platform SKU attached to each operation
+
+Cost modeling should be based on measured calls for 20, 50, and 100 addresses
+per agent per month.
