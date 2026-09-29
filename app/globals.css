@@ -2,7 +2,11 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #172033;
+  --agentflow-blue: #2187e5;
+  --agentflow-blue-dark: #1068bd;
+  --agentflow-navy: #172033;
+  --agentflow-soft: #eef7ff;
 }
 
 @theme inline {
@@ -12,15 +16,67 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+button,
+a,
+input,
+select {
+  outline-color: var(--agentflow-blue);
+}
+
+.af-card {
+  border: 1px solid rgba(184, 205, 230, 0.72);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 55px rgba(29, 88, 145, 0.08);
+}
+
+.af-focus {
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.af-focus:focus-visible {
+  outline: 3px solid rgba(33, 135, 229, 0.28);
+  outline-offset: 3px;
+}
+
+.table-action,
+.table-action-primary {
+  min-height: 2.25rem;
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.table-action {
+  border: 1px solid rgb(226 232 240);
+  background: #ffffff;
+  color: #334155;
+}
+
+.table-action-primary {
+  background: var(--agentflow-blue);
+  color: #ffffff;
+}
+
+.table-action:focus-visible,
+.table-action-primary:focus-visible {
+  outline: 3px solid rgba(33, 135, 229, 0.28);
+  outline-offset: 3px;
 }

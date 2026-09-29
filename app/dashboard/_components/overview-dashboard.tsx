@@ -16,6 +16,10 @@ type OverviewResponse = {
     totalOpenHouseSignins: number;
     uniqueOpenHouseProperties: number;
     newUsersLast7Days: number;
+    brokerageCount: number;
+    brokerageSeatsSold: number;
+    assignedBrokerageSeats: number;
+    activeBrokerageSubscriptions: number;
   };
   promotionSettings?: {
     free_trial_enabled: boolean;
@@ -34,6 +38,10 @@ const EMPTY_SUMMARY = {
   totalOpenHouseSignins: 0,
   uniqueOpenHouseProperties: 0,
   newUsersLast7Days: 0,
+  brokerageCount: 0,
+  brokerageSeatsSold: 0,
+  assignedBrokerageSeats: 0,
+  activeBrokerageSubscriptions: 0,
 };
 
 export default function OverviewDashboard() {
@@ -74,22 +82,21 @@ export default function OverviewDashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="border-b border-slate-200 bg-white/90 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <div>
-            <h1 className="text-sm font-semibold tracking-wide">
-              AgentFlow Overview
-            </h1>
-            <p className="text-[11px] text-slate-500">
-              Live admin snapshot of users, revenue, open houses, and promotion
-              settings from AgentFlow App.
-            </p>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen px-4 py-6 text-[#172033] lg:px-8 lg:py-8">
+      <div className="mx-auto max-w-7xl">
+        <header className="mb-7">
+          <p className="text-sm font-semibold uppercase text-[#2187e5]">
+            AgentFlow Master Admin
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold text-[#172033] sm:text-4xl">
+            Operational Overview
+          </h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+            Live snapshot of users, RevenueCat subscription status, brokerage
+            seats, open-house activity, and promotion settings.
+          </p>
+        </header>
 
-      <div className="mx-auto max-w-6xl px-4 py-5">
         {error && (
           <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
@@ -102,7 +109,7 @@ export default function OverviewDashboard() {
           </div>
         )}
 
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Total Users"
             value={loading ? '...' : summary.totalUsers}
@@ -127,8 +134,32 @@ export default function OverviewDashboard() {
           />
         </div>
 
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            label="Brokerages"
+            value={loading ? '...' : summary.brokerageCount}
+            color="blue"
+            subtext={`${summary.activeBrokerageSubscriptions} granting access`}
+          />
+          <StatCard
+            label="Seats Sold"
+            value={loading ? '...' : summary.brokerageSeatsSold}
+            color="slate"
+          />
+          <StatCard
+            label="Assigned Seats"
+            value={loading ? '...' : summary.assignedBrokerageSeats}
+            color="emerald"
+          />
+          <StatCard
+            label="Individual Subscriptions"
+            value={loading ? '...' : summary.activePaid}
+            color="amber"
+          />
+        </div>
+
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <div className="rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-sm">
+          <div className="af-card rounded-2xl p-5">
             <div className="mb-1 text-sm font-semibold">Open House Activity</div>
             <div className="text-sm text-slate-600">
               {loading
@@ -137,13 +168,13 @@ export default function OverviewDashboard() {
             </div>
             <Link
               href="/dashboard/reports/open-house"
-              className="mt-3 inline-block text-sm font-medium text-sky-600"
+              className="mt-3 inline-block text-sm font-medium text-[#2187e5]"
             >
-              View Open House Reports →
+              View Open House Reports
             </Link>
           </div>
 
-          <div className="rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-sm">
+          <div className="af-card rounded-2xl p-5">
             <div className="mb-1 text-sm font-semibold">New Users (Last 7 Days)</div>
             <div className="text-2xl font-semibold">
               {loading ? '...' : summary.newUsersLast7Days}
@@ -154,7 +185,7 @@ export default function OverviewDashboard() {
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-sm">
+          <div className="af-card rounded-2xl p-5">
             <div className="mb-2 text-sm font-semibold">Promotions Status</div>
             <div className="text-sm text-slate-600">
               {loading
@@ -167,31 +198,37 @@ export default function OverviewDashboard() {
             </div>
             <Link
               href="/dashboard/promotions"
-              className="mt-3 inline-block text-sm font-medium text-sky-600"
+              className="mt-3 inline-block text-sm font-medium text-[#2187e5]"
             >
-              Manage Promotions →
+              Manage Promotions
             </Link>
           </div>
         </div>
 
-        <div className="mt-4 rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-sm">
+        <div className="af-card mt-4 rounded-2xl p-5">
           <div className="mb-2 text-sm font-semibold">Quick Admin Actions</div>
           <div className="flex flex-wrap gap-3 text-xs">
             <Link
               href="/dashboard/users"
-              className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200"
+              className="rounded-full bg-[#eef7ff] px-4 py-2 text-sm font-medium text-slate-700 hover:bg-sky-100"
             >
               Manage Users
             </Link>
             <Link
+              href="/dashboard/brokerages"
+              className="rounded-full bg-[#eef7ff] px-4 py-2 text-sm font-medium text-slate-700 hover:bg-sky-100"
+            >
+              Manage Brokerages
+            </Link>
+            <Link
               href="/dashboard/reports/user-activity"
-              className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200"
+              className="rounded-full bg-[#eef7ff] px-4 py-2 text-sm font-medium text-slate-700 hover:bg-sky-100"
             >
               User Activity
             </Link>
             <Link
               href="/dashboard/reports/open-house"
-              className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200"
+              className="rounded-full bg-[#eef7ff] px-4 py-2 text-sm font-medium text-slate-700 hover:bg-sky-100"
             >
               Open House Reports
             </Link>
@@ -221,8 +258,8 @@ function StatCard({
   } as const;
 
   return (
-    <div className={`rounded-[28px] border px-5 py-5 shadow-sm ${accents[color]}`}>
-      <div className="text-xs uppercase tracking-[0.18em] text-slate-500">
+    <div className={`rounded-2xl border px-5 py-5 shadow-sm ${accents[color]}`}>
+      <div className="text-xs font-semibold uppercase text-slate-500">
         {label}
       </div>
       <div className="mt-2 text-2xl font-semibold text-slate-900">{value}</div>

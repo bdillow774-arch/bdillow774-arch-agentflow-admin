@@ -38,6 +38,8 @@ export async function GET() {
       sessionsResult,
       leadsResult,
       promotionSettingsResult,
+      brokeragesResult,
+      membershipsResult,
     ] = await Promise.all([
       supabaseAdminClient
         .from('users')
@@ -57,6 +59,12 @@ export async function GET() {
         .order('created_at', { ascending: true })
         .limit(1)
         .maybeSingle(),
+      supabaseAdminClient
+        .from('brokerages')
+        .select('id, subscription_state, purchased_seats'),
+      supabaseAdminClient
+        .from('brokerage_memberships')
+        .select('id, status, seat_assigned_at, seat_revoked_at'),
     ]);
 
     if (usersResult.error) {
@@ -101,6 +109,19 @@ export async function GET() {
       );
     }
 
+    if (brokeragesResult.error) {
+      warnings.push(`Brokerage data unavailable: ${brokeragesResult.error.message}`);
+    }
+
+    if (membershipsResult.error) {
+      warnings.push(
+        `Brokerage membership data unavailable: ${membershipsResult.error.message}`,
+      );
+    }
+
+    const brokerages = brokeragesResult.error ? [] : (brokeragesResult.data ?? []);
+    const memberships = membershipsResult.error ? [] : (membershipsResult.data ?? []);
+
     const totalUsers = users.length;
     const activeTrials = users.filter((user) => {
       const accountType = user.account_type ?? 'free';
@@ -131,6 +152,23 @@ export async function GET() {
         .filter(Boolean),
     ).size;
 
+    const brokerageCount = brokerages.length;
+    const activeBrokerageSubscriptions = brokerages.filter((brokerage) =>
+      ['active', 'grace_period'].includes(
+        String(brokerage.subscription_state ?? '').toLowerCase(),
+      ),
+    ).length;
+    const brokerageSeatsSold = brokerages.reduce(
+      (sum, brokerage) => sum + Number(brokerage.purchased_seats ?? 0),
+      0,
+    );
+    const assignedBrokerageSeats = memberships.filter(
+      (membership) =>
+        membership.status === 'active' &&
+        membership.seat_assigned_at &&
+        !membership.seat_revoked_at,
+    ).length;
+
     await logAdminAudit({
       action: 'read',
       resourceType: 'overview',
@@ -140,6 +178,10 @@ export async function GET() {
         activeTrials,
         activePaid,
         totalOpenHouseSignins: openHouseLeads.length,
+        brokerageCount,
+        brokerageSeatsSold,
+        assignedBrokerageSeats,
+        activeBrokerageSubscriptions,
       },
     });
 
@@ -155,6 +197,10 @@ export async function GET() {
         totalOpenHouseSignins: openHouseLeads.length,
         uniqueOpenHouseProperties,
         newUsersLast7Days,
+        brokerageCount,
+        brokerageSeatsSold,
+        assignedBrokerageSeats,
+        activeBrokerageSubscriptions,
       },
       promotionSettings: promotionSettingsResult.data ?? null,
       recentUsers: users.slice(0, 8),

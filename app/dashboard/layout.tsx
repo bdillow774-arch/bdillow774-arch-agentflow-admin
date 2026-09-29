@@ -14,12 +14,14 @@ type DashboardLayoutProps = {
 
 const navItems = [
   { label: 'Overview', href: '/dashboard' },
-  { label: 'Admin Access', href: '/dashboard/admin-access' },
   { label: 'Users', href: '/dashboard/users' },
   { label: 'Brokerages', href: '/dashboard/brokerages' },
-  { label: 'Accounting', href: '/dashboard/accounting' },
+  { label: 'Subscriptions', href: '/dashboard/reports/user-activity' },
   { label: 'Promotions', href: '/dashboard/promotions' },
+  { label: 'Open Houses', href: '/dashboard/reports/open-house' },
+  { label: 'Accounting', href: '/dashboard/accounting' },
   { label: 'Reports', href: '/dashboard/reports' },
+  { label: 'System Settings', href: '/dashboard/admin-access' },
 ];
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
@@ -134,22 +136,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-100 text-slate-900">
-      {/* Sidebar */}
-      <aside className="flex w-72 flex-col border-r border-slate-200 bg-white">
-        <div className="border-b border-slate-200 px-5 py-5">
+    <div className="flex min-h-screen bg-[#f4f8fc] text-[#172033]">
+      <aside className="hidden w-72 flex-col border-r border-slate-200 bg-white/95 shadow-[12px_0_35px_rgba(36,89,140,0.06)] lg:flex">
+        <div className="border-b border-slate-200 px-5 py-6">
           <div className="mb-4">
             <BrandLogo variant="sidebar" />
           </div>
-          <div className="mb-1 text-xs uppercase tracking-[0.22em] text-slate-500">
-            AgentFlow
-          </div>
-          <div className="text-lg font-semibold text-slate-900">
-            Admin Dashboard
+          <div className="rounded-2xl bg-[#eef7ff] px-4 py-3">
+            <div className="text-xs font-semibold uppercase text-[#2187e5]">
+              Master Admin
+            </div>
+            <div className="mt-1 text-sm font-medium text-slate-700">
+              Internal operations
+            </div>
           </div>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3 py-4">
+        <nav className="flex-1 space-y-1 px-3 py-5">
           {navItems.map(item => {
             const isActive =
               pathname === item.href ||
@@ -162,8 +165,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 className={[
                   'flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
                   isActive
-                    ? 'bg-sky-500 text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+                    ? 'bg-[#2187e5] text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-[#eef7ff] hover:text-[#172033]',
                 ].join(' ')}
               >
                 {item.label}
@@ -175,7 +178,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="border-t border-slate-200 px-3 py-4">
           <button
             onClick={handleLogout}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
+            className="af-focus w-full rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-[#eef7ff]"
           >
             Logout
           </button>
@@ -185,10 +188,41 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
       </aside>
 
-      {/* Main content */}
-      <main className="min-h-screen flex-1 bg-slate-50 text-slate-900">
+      <div className="min-w-0 flex-1">
+        <div className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur lg:hidden">
+          <div className="mb-3 flex items-center justify-between">
+            <BrandLogo variant="sidebar" />
+            <button
+              onClick={handleLogout}
+              className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700"
+            >
+              Logout
+            </button>
+          </div>
+          <nav className="flex gap-2 overflow-x-auto pb-1">
+            {navItems.map((item) => {
+              const isActive =
+                pathname === item.href ||
+                (item.href !== '/dashboard' && pathname?.startsWith(item.href));
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={[
+                    'shrink-0 rounded-full px-3 py-2 text-xs font-semibold',
+                    isActive ? 'bg-[#2187e5] text-white' : 'bg-[#eef7ff] text-slate-700',
+                  ].join(' ')}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+      <main className="min-h-screen bg-[#f4f8fc] text-[#172033]">
         {children}
       </main>
+      </div>
     </div>
   );
 }
